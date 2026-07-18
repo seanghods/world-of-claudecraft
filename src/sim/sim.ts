@@ -5000,10 +5000,14 @@ export class Sim {
     // silence to land on the wearer is cleansed instantly, i.e. never applied.
     // The ICD rides an 'internal_cd' aura (no new entity field enters the
     // parity state hash) that the player can watch tick down. Draws no rng.
+    // Scripted encounter control (the Nythraxis transition cinematic stun) is
+    // never a cleanse target: the whole raid freezes for the sequence, mage
+    // included. Combat CC below stays cleansable as designed.
     if (
       target.kind === 'player' &&
       (aura.kind === 'stun' || aura.kind === 'root' || aura.kind === 'silence') &&
-      aura.sourceId !== target.id
+      aura.sourceId !== target.id &&
+      !nythraxis.NYTHRAXIS_SCRIPTED_CONTROL_AURA_IDS.has(aura.id)
     ) {
       const riftMeta = this.players.get(target.id);
       if (

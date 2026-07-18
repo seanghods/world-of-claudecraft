@@ -184,11 +184,20 @@ export function isNythraxisControllableAdd(target: Entity): boolean {
   );
 }
 
+// Aura ids that are SCRIPTED encounter control (the phase-two cinematic room
+// stun), not combat CC. Two consumers: the mob cc-immunity bypass below (adds
+// and pets must still freeze during the transition), and Sim.applyAura's
+// Temporal Rift branch (no player counter may eat a scripted stun; a mage
+// standing free during the cutscene while the raid is stunned is a bug).
+export const NYTHRAXIS_SCRIPTED_CONTROL_AURA_IDS: ReadonlySet<string> = new Set([
+  'nythraxis_transition_stun',
+]);
+
 export function isNythraxisScriptedControl(target: Entity, aura: Aura): boolean {
   return (
     target.kind === 'mob' &&
     (isNythraxisRaidAddTemplate(target.templateId) || target.ownerId !== null) &&
-    aura.id === 'nythraxis_transition_stun'
+    NYTHRAXIS_SCRIPTED_CONTROL_AURA_IDS.has(aura.id)
   );
 }
 
