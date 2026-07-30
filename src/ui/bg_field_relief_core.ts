@@ -1,4 +1,4 @@
-// Pure relief painter for the Thornhollow battleground field's two map
+// Pure relief painter for the Ravenrift battleground field's two map
 // backgrounds: the M-key field plan (battleground_map_painter) and the cached
 // minimap raster (minimap_painter). Host-agnostic (no DOM, no canvas, no i18n):
 // it writes straight into the flat RGBA buffer an `ImageData` exposes, which is
@@ -8,10 +8,9 @@
 // Heights come from `bgFieldHeightLocal`, the ONE surface the sim, the server
 // and the renderer all sample, so a shaded ridge on the map is a ridge a
 // fighter really has to climb. The colours are a hypsometric ramp over the
-// authored field (the sunken Fightpit, the ravine floor the flag run crosses,
-// the two flank ridge decks, the keep plateaus, then the wooded slope that is
-// out of play) plus a west-to-east hillshade, which is what actually makes the
-// pit rim and the ridge shoulders read at map scale.
+// authored field (the flat walled play field, then the forested backdrop
+// slopes outside the ramparts, which are out of play) plus a west-to-east
+// hillshade, which is what makes the backdrop rim read at map scale.
 //
 // The ramp is a hardcoded terrain palette, exactly as map_terrain.ts hardcodes
 // the overworld biome colours: it is sampled terrain, not HUD chrome, and a
@@ -23,18 +22,15 @@ import { bgFieldHeightLocal } from '../sim/battleground_field';
 /** One hypsometric stop: [field height in yards, r, g, b]. */
 type ReliefStop = readonly [number, number, number, number];
 
-// Ascending by height. The play surface sits between about -9 (the Fightpit
-// floor) and 11 (the keep decks); everything above the treeline is the wooded
-// ravine wall the hollow is cut into, which reads dark and cold on purpose so
-// the walkable hollow separates from it at a glance.
+// Ascending by height. The classic play field is flat 0 wall to wall; every
+// height above it is the forested backdrop ring outside the ramparts, which
+// reads dark and cold on purpose so the walkable field separates from it at
+// a glance.
 const RELIEF_RAMP: readonly ReliefStop[] = [
-  [-9, 100, 92, 74], // Fightpit floor, the deepest ground on the field
-  [-3, 150, 139, 113], // the pit's shoulders
-  [0, 186, 174, 146], // ravine floor: the flag run
-  [6, 201, 190, 162], // Whistlerock / Sablepine ridge decks
-  [12, 206, 196, 172], // the two keep plateaus
-  [16, 128, 132, 108], // treeline: the hollow's lip, deliberately abrupt
-  [30, 70, 78, 64], // the wooded ravine wall, out of play
+  [0, 186, 174, 146], // the walled field: the whole play surface
+  [1.5, 160, 152, 126], // the first rise past the ramparts
+  [3.5, 128, 132, 108], // treeline: the hollow's lip, deliberately abrupt
+  [9, 70, 78, 64], // the wooded slopes, out of play
 ];
 
 // Hillshade from the west-to-east slope, reusing the already-sampled

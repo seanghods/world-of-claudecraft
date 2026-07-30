@@ -42,8 +42,8 @@ export * from './battleground_core';
 const BG_LIGHT_BUDGET_BY_TIER: Record<string, number> = {
   low: 0,
   medium: 6,
-  high: 14,
-  ultra: 14,
+  high: 12,
+  ultra: 12,
 };
 
 export interface BattlegroundPreloadAssetPaths {

@@ -1,21 +1,21 @@
-// Ravenrift, the ranked 5v5 capture-the-flag battleground, fought at
-// THORNHOLLOW: a capture-the-flag hollow in the old growth under Thornpeak.
-// Crimson and Azure race the ravine floor for each other's banner, each behind
-// a two-storey keep on its own plateau, with two flank ridges for the high
-// road and the Fightpit sunk into the middle.
+// Ravenrift, the ranked 5v5 capture-the-flag battleground: the classic
+// three-chamber field, re-dressed in the Thornhollow style. Two full-width
+// curtain walls carve the walled rect into each team's field chamber and the
+// Ruin Courtyard between them; every move between chambers passes one of TWO
+// contested crossings per curtain (the main gate or the gatehouse room), a
+// keep at each end holds the flag, and the old-growth hollow crowds the
+// outside of the ramparts.
 //
-// The field is an AUTHORED map (data/battleground/thornhollow.map.json, built
-// in the map editor), compiled by scripts/assets/compile_thornhollow.mjs into
-// src/sim/thornhollow_field.generated.ts: terrain stamp chain, per-asset baked
-// collision, art placements, ground paint, and the game-mode anchors. This
-// module is the mode's view of that record (the handful of positions the
-// flag/respawn/graveyard/rune logic reasons about) plus the collider set the
-// spatial grid mounts (src/sim/colliders.ts bandSlotColliders).
-//
-// Unlike the old code-defined field, walls and cover are NOT segments here:
-// they are ordinary placements that draw themselves and block with their own
-// baked collision, so what you fight around is what you see. Sim layer: no
-// three.js imports; the generated module is plain data.
+// The field is an AUTHORED map (data/battleground/thornhollow.map.json,
+// emitted by scripts/assets/generate_ravenrift_classic.mjs from the classic
+// layout's exact geometry), compiled by scripts/assets/compile_thornhollow.mjs
+// into src/sim/thornhollow_field.generated.ts: terrain stamp chain, invisible
+// collider volumes carrying the classic wall/cover set verbatim, art
+// placements, ground paint, and the game-mode anchors. This module is the
+// mode's view of that record (the handful of positions the flag/respawn/
+// graveyard/rune logic reasons about) plus the collider set the spatial grid
+// mounts (src/sim/colliders.ts bandSlotColliders). Sim layer: no three.js
+// imports; the generated module is plain data.
 
 import { bgFieldHeightLocal } from './battleground_field';
 import type { Collider } from './colliders';
@@ -33,14 +33,21 @@ export type BgTeam = 0 | 1; // 0 = Crimson (south, -z), 1 = Azure (north, +z)
 export const BG_TEAM_NAMES = ['Crimson', 'Azure'] as const;
 export const BG_TEAM_COLORS = [0xd1413a, 0x3a78d1] as const; // red, blue: flags/banners/blips
 
-// Field footprint: the full walled rect, ravine slopes included. The PLAY rect
-// is the walkable hollow inside the wooded slopes; the space between the two
-// is dressing and the perimeter blockers.
-export const BG_HALF_X = TH_HALF_X; // 120
-export const BG_HALF_Z = TH_HALF_Z; // 226
-export const BG_PLAY_HALF_X = 86;
-export const BG_PLAY_HALF_Z = 182;
-export const BG_FLAG_Z = 167; // |z| of each team's flag stand (keep inner court)
+// Field footprint: the full document rect, forest backdrop ring included. The
+// PLAY rect is the classic walled 100x280 field; the ring between the two is
+// dressing outside the ramparts, walled off by both the rampart colliders and
+// the perimeter blockers.
+export const BG_HALF_X = TH_HALF_X; // 62
+export const BG_HALF_Z = TH_HALF_Z; // 152
+export const BG_PLAY_HALF_X = 50;
+export const BG_PLAY_HALF_Z = 140;
+export const BG_FLAG_Z = 118; // |z| of each team's flag stand (keep heart)
+
+// Keep enclosure: a back wall behind the flag and two solid side walls, open
+// only toward the field. The mouth line is the form-up hold.
+const KEEP_HALF_X = 16;
+const KEEP_BACK_DZ = 10; // back wall sits this far behind the flag
+const KEEP_MOUTH_DZ = 10; // interior extends this far field-side of the flag
 
 export interface BgBaseDef {
   team: BgTeam;
@@ -56,8 +63,9 @@ export const BG_BASES: BgBaseDef[] = TH_BASES.map((b) => ({
   banner: { ...b.banner },
 }));
 
-// Rune pads: six Sprint Runes down the lanes and four Battle/Ward pads on the
-// flank approaches, exactly where the map placed them.
+// Rune pads: four Sprint Runes (one per flag approach, two courtyard flanks)
+// and two Battle/Ward pads at the curtains' courtyard-side gate mouths,
+// exactly where the map placed them.
 export const BG_SPEED_RUNES: { x: number; z: number }[] = TH_SPEED_RUNES.map((r) => ({ ...r }));
 export const BG_POWER_RUNES: { x: number; z: number }[] = TH_POWER_RUNES.map((r) => ({ ...r }));
 
@@ -74,11 +82,10 @@ export const BG_GRAVEYARDS: [BgGraveyardPlot, BgGraveyardPlot] = [
 ];
 
 /**
- * The form-up containment box: each team's whole base area, from the map edge
- * to a line just field-side of the spawn ring. During the countdown a fighter
- * who crosses the line is set back to a spawn spot; once the match goes live
- * the box has no meaning. (Thornhollow's spawn ring stands OUTSIDE the keep
- * gate, so the hold line is the base line, not the keep walls.)
+ * The keep's interior box for one team: x across the keep's full width, z from
+ * the back wall to the mouth line. The spawn ring (|z| 113..117) sits inside
+ * it, and the form-up containment (social/battleground.ts tickCountdown) reads
+ * this so the gate can never drift from the walls it stands in for.
  */
 export function keepInteriorBounds(team: BgTeam): {
   minX: number;
@@ -86,11 +93,16 @@ export function keepInteriorBounds(team: BgTeam): {
   minZ: number;
   maxZ: number;
 } {
-  const holdZ = 118; // just field-side of the spawn ring (|z| 125..130)
-  if (team === 0) {
-    return { minX: -BG_PLAY_HALF_X, maxX: BG_PLAY_HALF_X, minZ: -BG_HALF_Z, maxZ: -holdZ };
-  }
-  return { minX: -BG_PLAY_HALF_X, maxX: BG_PLAY_HALF_X, minZ: holdZ, maxZ: BG_HALF_Z };
+  const dir = team === 0 ? -1 : 1;
+  const flagZ = team === 0 ? -BG_FLAG_Z : BG_FLAG_Z;
+  const backZ = flagZ + dir * KEEP_BACK_DZ;
+  const mouthZ = flagZ - dir * KEEP_MOUTH_DZ;
+  return {
+    minX: -KEEP_HALF_X,
+    maxX: KEEP_HALF_X,
+    minZ: Math.min(backZ, mouthZ),
+    maxZ: Math.max(backZ, mouthZ),
+  };
 }
 
 /**
