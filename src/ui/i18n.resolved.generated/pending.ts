@@ -12,6 +12,7 @@ export const pending: Record<string, readonly string[]> = {
   "es": [
     "hudChrome.actionBar.bannerCapturing",
     "hudChrome.actionBar.bannerHint",
+    "zz.fromBranchB",
     "hudChrome.actionBar.boundToKey",
     "hudChrome.actionBar.cancel",
     "hudChrome.actionBar.done",
