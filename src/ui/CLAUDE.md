@@ -354,11 +354,18 @@ The locale data is split; touch the right file (full model + locked-terms glossa
 hand-resolved**: take either side, run `npm run i18n:gen`, and `git add` the result. The
 committed slices are line-item (sorted, one item per line, no counts, hashes, or timestamps),
 so the full-universe locale slices auto-merge byte-perfectly; the global aggregates
-(`i18n.status.summary.json`, `i18n.resolved.sha256`) are no longer committed. One slice can
-still conflict: `pending.ts` is a small sorted per-locale list, so two concurrent new-key PRs
-often insert at the same tail line. That conflict is expected, resolves with the exact recipe
-above (take either side, regen, add), and a durable fix (the same-as-English
-inversion) is specced in the toolchain packet's close-out summary on issue #1868. The output is
+(`i18n.status.summary.json`, `i18n.resolved.sha256`) are no longer committed. One slice used
+to conflict on nearly every concurrent pair: `pending.ts` is a small sorted per-locale list, so
+two new-key PRs insert at the same tail line, in all 21 locales. It is now marked `merge=union`
+in `.gitattributes` (pinned by `tests/gitattributes_merge_policy.test.ts`), so git keeps both
+sides' lines instead of stopping the merge. Union is safe here ONLY because the file is fully
+derived and the freshness step regenerates and diffs it, so a union result the build would not
+emit cannot survive CI; the one shape union can mangle (an addition merged against a deletion,
+i.e. a release fill beside a feature branch) emits a duplicate `"<locale>":` key that tsc
+(TS1117) and biome (`noDuplicateObjectKeys`) both reject. In every case the recovery is the
+recipe above: re-run `npm run i18n:gen` and commit. The durable fix that removes the file's
+churn entirely (the same-as-English inversion) is still specced as OPEN item 8 in the toolchain
+packet's close-out summary on issue #1868. The output is
 deterministic, so a second `i18n:gen` must leave the tree clean (your proof; CI's freshness
 step checks the same). A rising `pending` count after merging a `release/**` branch is
 expected and fine at PR tier.

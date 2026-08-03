@@ -8,6 +8,26 @@ src/ui/i18n.resolved.generated/** linguist-generated
 src/admin/i18n.resolved.generated/** linguist-generated
 src/ui/i18n.catalog/translation_keys.generated.ts linguist-generated
 
+# pending.ts alone merges with the built-in `union` driver: keep BOTH sides' lines
+# instead of raising a conflict. Every PR that adds an English string inserts into the
+# same short per-locale list, in all 21 locales, so two concurrent branches collide in
+# the same hunk every time. The dense locale slices next to it are large and line-item,
+# so their inserts land far apart and already auto-merge; this one does not.
+#
+# Safe here for one reason: the file is 100% derived and CI regenerates it and diffs
+# (the "i18n freshness" gate step over I18N_ARTIFACTS), so a union result that is not
+# what the build would emit CANNOT survive CI. Union's own weak spot, an addition
+# merged against a deletion (a release fill next to a feature branch), emits a
+# duplicate `"<locale>":` key, which fails THREE ways before that: tsc TS1117, biome
+# noDuplicateObjectKeys, and the freshness diff. The recovery is the same recipe as a
+# manual conflict: re-run `npm run i18n:gen` and commit the regenerated file.
+#
+# Do NOT widen this to the sibling locale slices. They are read at runtime and are not
+# append-only, so a silent line-level union there buys nothing the size of the files
+# does not already give, and hides a real disagreement. Pinned by
+# tests/gitattributes_merge_policy.test.ts.
+src/ui/i18n.resolved.generated/pending.ts merge=union
+
 # Windows batch scripts keep their CRLF endings: exempt from text conversion so an
 # LF-normalized checkout (core.autocrlf=input) neither flags nor rewrites them.
 *.bat -text
